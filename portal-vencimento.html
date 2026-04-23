@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Portal de Vencimento</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #1a1d27;
+    --bg3: #22263a;
+    --border: #2e3350;
+    --accent: #4f6ef7;
+    --accent2: #6c8aff;
+    --danger: #e04f4f;
+    --warn: #f0a500;
+    --success: #2ecc71;
+    --text: #eef0f8;
+    --text2: #8b90b0;
+    --text3: #5a5f7a;
+    --font: 'Segoe UI', system-ui, sans-serif;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+  /* HEADER */
+  .header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .header h1 { font-size: 16px; font-weight: 700; letter-spacing: 0.5px; color: var(--accent2); }
+  .header-actions { display: flex; gap: 8px; }
+
+  /* NAV TABS */
+  .tabs { display: flex; background: var(--bg2); border-bottom: 1px solid var(--border); }
+  .tab { flex: 1; padding: 12px 8px; text-align: center; font-size: 12px; font-weight: 600; color: var(--text2); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; letter-spacing: 0.4px; text-transform: uppercase; }
+  .tab.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+
+  /* MAIN CONTENT */
+  .page { display: none; padding: 16px; }
+  .page.active { display: block; }
+
+  /* CARDS */
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+  .card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text3); margin-bottom: 12px; }
+
+  /* INPUTS */
+  .input-group { margin-bottom: 12px; }
+  .input-group label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 6px; font-weight: 500; }
+  .input-group input, .input-group select { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px 14px; color: var(--text); font-size: 15px; font-family: var(--font); outline: none; transition: border-color 0.2s; }
+  .input-group input:focus, .input-group select:focus { border-color: var(--accent); }
+  .input-group input::placeholder { color: var(--text3); }
+  .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* PRODUTO PREVIEW */
+  .produto-preview { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 12px; min-height: 60px; }
+  .produto-preview.found { border-color: var(--accent); }
+  .produto-nome { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+  .produto-comp { font-size: 12px; color: var(--text2); }
+  .produto-empty { font-size: 13px; color: var(--text3); font-style: italic; }
+  .produto-cod { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+
+  /* BUTTONS */
+  .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 13px; border-radius: var(--radius-sm); border: none; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.15s; letter-spacing: 0.3px; }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-secondary { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-scan { background: var(--bg3); border: 1px solid var(--accent); color: var(--accent2); }
+  .btn-sm { padding: 7px 12px; font-size: 12px; width: auto; border-radius: 6px; }
+  .btn-icon { font-size: 18px; }
+
+  /* LISTA DE ITENS */
+  .item-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 8px; position: relative; }
+  .item-card.expiring { border-left: 3px solid var(--warn); }
+  .item-card.expired { border-left: 3px solid var(--danger); }
+  .item-card.ok { border-left: 3px solid var(--success); }
+  .item-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+  .item-nome { font-size: 14px; font-weight: 600; flex: 1; margin-right: 8px; line-height: 1.3; }
+  .item-comp { font-size: 11px; color: var(--text2); margin-bottom: 6px; }
+  .item-cod-badge { font-size: 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; color: var(--text3); font-family: monospace; }
+  .item-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .item-qty { font-size: 12px; font-weight: 600; color: var(--accent2); background: rgba(79,110,247,0.15); border-radius: 4px; padding: 3px 8px; }
+  .item-date { font-size: 12px; color: var(--text2); }
+  .item-days { font-size: 11px; font-weight: 700; border-radius: 4px; padding: 3px 8px; }
+  .days-ok { background: rgba(46,204,113,0.15); color: var(--success); }
+  .days-warn { background: rgba(240,165,0,0.15); color: var(--warn); }
+  .days-exp { background: rgba(224,79,79,0.15); color: var(--danger); }
+  .item-actions { display: flex; gap: 6px; margin-top: 8px; }
+  .btn-del { background: none; border: 1px solid var(--border); color: var(--text3); border-radius: 6px; padding: 5px 10px; font-size: 11px; cursor: pointer; transition: all 0.15s; }
+  .btn-del:hover { border-color: var(--danger); color: var(--danger); }
+  .btn-edit { background: none; border: 1px solid var(--border); color: var(--text3); border-radius: 6px; padding: 5px 10px; font-size: 11px; cursor: pointer; }
+
+  /* STATS */
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; text-align: center; }
+  .stat-num { font-size: 26px; font-weight: 700; }
+  .stat-label { font-size: 11px; color: var(--text2); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-ok .stat-num { color: var(--success); }
+  .stat-warn .stat-num { color: var(--warn); }
+  .stat-exp .stat-num { color: var(--danger); }
+  .stat-total .stat-num { color: var(--accent2); }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; align-items: flex-end; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px 16px 0 0; padding: 20px 16px; width: 100%; max-height: 85vh; overflow-y: auto; }
+  .modal-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+  .modal-btns { display: flex; gap: 8px; margin-top: 12px; }
+  .modal-btns .btn { flex: 1; }
+
+  /* SCANNER */
+  #scanner-container { display: none; position: fixed; inset: 0; z-index: 300; background: #000; flex-direction: column; }
+  #scanner-container.open { display: flex; }
+  #scanner-video { width: 100%; height: 100%; object-fit: cover; }
+  .scanner-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+  .scan-frame { width: 260px; height: 120px; border: 2px solid var(--accent2); border-radius: 8px; position: relative; box-shadow: 0 0 0 9999px rgba(0,0,0,0.55); }
+  .scan-line { position: absolute; left: 0; right: 0; height: 2px; background: var(--accent2); animation: scanline 1.8s ease-in-out infinite; opacity: 0.8; }
+  @keyframes scanline { 0%,100% { top: 10%; } 50% { top: 85%; } }
+  .scanner-tip { color: #fff; font-size: 13px; margin-top: 20px; text-align: center; opacity: 0.8; padding: 0 20px; }
+  .scanner-close { position: absolute; top: 24px; right: 16px; pointer-events: all; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: #fff; border-radius: 50%; width: 40px; height: 40px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .scanner-status { position: absolute; bottom: 40px; left: 16px; right: 16px; pointer-events: all; }
+
+  /* FILTROS */
+  .filter-row { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 2px; }
+  .filter-row::-webkit-scrollbar { display: none; }
+  .filter-btn { white-space: nowrap; padding: 7px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg2); color: var(--text2); font-size: 12px; font-weight: 600; cursor: pointer; flex-shrink: 0; }
+  .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* SEARCH */
+  .search-wrap { position: relative; margin-bottom: 12px; }
+  .search-wrap input { padding-left: 36px; }
+  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 16px; }
+
+  /* UPLOAD */
+  .upload-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 32px 16px; text-align: center; cursor: pointer; transition: border-color 0.2s; margin-bottom: 12px; }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); }
+  .upload-icon { font-size: 36px; margin-bottom: 8px; }
+  .upload-text { font-size: 14px; color: var(--text2); }
+  .upload-sub { font-size: 12px; color: var(--text3); margin-top: 4px; }
+  .db-status { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--bg3); border-radius: var(--radius-sm); margin-bottom: 12px; font-size: 13px; }
+  .db-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .db-dot.loaded { background: var(--success); }
+  .db-dot.empty { background: var(--text3); }
+
+  /* EMPTY */
+  .empty-state { text-align: center; padding: 48px 16px; }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-text { font-size: 14px; color: var(--text2); }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 18px; font-size: 13px; color: var(--text); z-index: 500; opacity: 0; transition: all 0.3s; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: var(--success); }
+  .toast.error { border-color: var(--danger); }
+
+  /* DIVIDER */
+  .divider { height: 1px; background: var(--border); margin: 12px 0; }
+
+  /* QTY UNIT PICKER */
+  .unit-picker { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+  .unit-btn { padding: 10px; text-align: center; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; color: var(--text2); background: var(--bg3); transition: all 0.15s; }
+  .unit-btn.active { border-color: var(--accent); color: var(--accent2); background: rgba(79,110,247,0.1); }
+
+  /* EAN BADGE */
+  .ean-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; background: rgba(79,110,247,0.15); border: 1px solid rgba(79,110,247,0.3); border-radius: 4px; padding: 2px 6px; color: var(--accent2); font-family: monospace; }
+
+  /* SORT */
+  .sort-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .sort-row label { font-size: 12px; color: var(--text2); white-space: nowrap; }
+  .sort-row select { flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; color: var(--text); font-size: 12px; }
+
+  /* DATE INPUT */
+  input[type="date"] { color-scheme: dark; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📦 Portal de Vencimento</h1>
+  <div class="header-actions">
+    <button class="btn btn-sm btn-scan" onclick="openScanner('list')" style="display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:6px;border:1px solid var(--accent);color:var(--accent2);background:var(--bg3);font-size:13px;font-weight:700;cursor:pointer;">
+      📷 Bipar
+    </button>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('add')">+ Adicionar</div>
+  <div class="tab" onclick="switchTab('list')">Lista</div>
+  <div class="tab" onclick="switchTab('config')">Config</div>
+</div>
+
+<!-- ===== ABA ADICIONAR ===== -->
+<div id="tab-add" class="page active">
+  <div class="card">
+    <div class="card-title">Adicionar Item</div>
+
+    <div class="input-group">
+      <label>Código do Produto</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="cod-input" placeholder="Ex: 5548 ou 55482" inputmode="numeric" maxlength="10" style="flex:1;" oninput="buscaProduto(this.value)">
+        <button class="btn btn-scan btn-sm" onclick="openScanner('add')" style="padding:11px 14px;flex-shrink:0;">📷</button>
+      </div>
+    </div>
+
+    <div class="produto-preview" id="prod-preview">
+      <div class="produto-empty">Digite o código para buscar o produto...</div>
+    </div>
+
+    <div class="input-row">
+      <div class="input-group">
+        <label>Quantidade</label>
+        <input type="number" id="qty-input" placeholder="0" min="0" step="0.001">
+      </div>
+      <div class="input-group">
+        <label>Unidade</label>
+        <select id="unit-input">
+          <option value="un">un</option>
+          <option value="kg">kg</option>
+          <option value="cx">cx</option>
+          <option value="plt">plt</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label>Data de Vencimento</label>
+      <input type="date" id="date-input">
+    </div>
+
+    <div class="input-group">
+      <label>Observação (opcional)</label>
+      <input type="text" id="obs-input" placeholder="Ex: Lote X, Câmara Y...">
+    </div>
+
+    <button class="btn btn-primary" onclick="adicionarItem()">
+      ✓ Adicionar à Lista
+    </button>
+  </div>
+</div>
+
+<!-- ===== ABA LISTA ===== -->
+<div id="tab-list" class="page">
+  <div class="stats-row">
+    <div class="stat-card stat-total"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total</div></div>
+    <div class="stat-card stat-exp"><div class="stat-num" id="stat-exp">0</div><div class="stat-label">Vencidos</div></div>
+    <div class="stat-card stat-warn"><div class="stat-num" id="stat-warn">0</div><div class="stat-label">Próximos</div></div>
+    <div class="stat-card stat-ok"><div class="stat-num" id="stat-ok">0</div><div class="stat-label">OK</div></div>
+  </div>
+
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="search-input" placeholder="Buscar por nome ou código..." oninput="renderLista()" style="width:100%;padding-left:36px;">
+  </div>
+
+  <div class="sort-row">
+    <label>Ordenar:</label>
+    <select id="sort-select" onchange="renderLista()">
+      <option value="date">Vencimento</option>
+      <option value="name">Nome</option>
+      <option value="cod">Código</option>
+      <option value="added">Adicionado</option>
+    </select>
+  </div>
+
+  <div class="filter-row">
+    <button class="filter-btn active" onclick="setFiltro('todos',this)">Todos</button>
+    <button class="filter-btn" onclick="setFiltro('vencidos',this)">Vencidos</button>
+    <button class="filter-btn" onclick="setFiltro('proximos',this)">Próximos 7d</button>
+    <button class="filter-btn" onclick="setFiltro('30d',this)">Próx. 30d</button>
+    <button class="filter-btn" onclick="setFiltro('ok',this)">OK</button>
+  </div>
+
+  <div id="lista-container"></div>
+</div>
+
+<!-- ===== ABA CONFIG ===== -->
+<div id="tab-config" class="page">
+  <div class="card">
+    <div class="card-title">Banco de Dados (SMG12.CSV)</div>
+    <div class="db-status" id="db-status">
+      <div class="db-dot empty" id="db-dot"></div>
+      <span id="db-info">Nenhum arquivo carregado</span>
+    </div>
+    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('csv-file').click()">
+      <div class="upload-icon">📂</div>
+      <div class="upload-text">Toque para carregar o SMG12.CSV</div>
+      <div class="upload-sub">Ou arraste o arquivo aqui</div>
+    </div>
+    <input type="file" id="csv-file" accept=".csv" style="display:none" onchange="carregarCSV(this)">
+  </div>
+
+  <div class="card">
+    <div class="card-title">Vínculos EAN × Código</div>
+    <div id="ean-list-config" style="margin-bottom:12px;"></div>
+    <button class="btn btn-secondary btn-sm" onclick="exportarVinculos()" style="margin-top:4px;">📤 Exportar vínculos</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Dados</div>
+    <div style="display:flex;gap:8px;flex-direction:column;">
+      <button class="btn btn-secondary" onclick="exportarLista()">📤 Exportar lista CSV</button>
+      <button class="btn btn-secondary" onclick="importarLista()">📥 Importar backup</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importarBackup(this)">
+      <button class="btn btn-danger" onclick="confirmarLimpar()">🗑 Limpar toda a lista</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL GENÉRICO ===== -->
+<div class="modal-overlay" id="modal-overlay" onclick="fecharModal(event)">
+  <div class="modal" id="modal-content">
+    <div class="modal-title" id="modal-title">Título</div>
+    <div id="modal-body"></div>
+    <div class="modal-btns" id="modal-btns"></div>
+  </div>
+</div>
+
+<!-- ===== SCANNER ===== -->
+<div id="scanner-container">
+  <video id="scanner-video" autoplay playsinline muted></video>
+  <div class="scanner-overlay">
+    <div class="scan-frame"><div class="scan-line"></div></div>
+    <div class="scanner-tip">Aponte para o código de barras do produto</div>
+  </div>
+  <button class="scanner-close" onclick="fecharScanner()">✕</button>
+  <div class="scanner-status">
+    <div id="scanner-msg" style="text-align:center;color:#fff;font-size:13px;opacity:0.7;"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ZXing para leitura de código de barras -->
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+
+<script>
+// ===================== STATE =====================
+let database = []; // {cod, nome, comp}
+let lista = [];    // {id, cod, nome, comp, qty, unit, date, obs, ean}
+let vinculosEAN = {}; // {ean: cod}
+let filtroAtual = 'todos';
+let scannerContext = 'list';
+let scannerAtivo = false;
+let codeReader = null;
+
+// ===================== INIT =====================
+function init() {
+  const db = localStorage.getItem('smg12_db');
+  if (db) { database = JSON.parse(db); atualizarStatusDB(); }
+  const lst = localStorage.getItem('venc_lista');
+  if (lst) lista = JSON.parse(lst);
+  const ean = localStorage.getItem('venc_ean');
+  if (ean) vinculosEAN = JSON.parse(ean);
+  renderLista();
+  atualizarEANConfig();
+  // data padrão hoje
+  document.getElementById('date-input').valueAsDate = new Date();
+}
+
+// ===================== TABS =====================
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab')[['add','list','config'].indexOf(tab)].classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+  if (tab === 'list') renderLista();
+  if (tab === 'config') atualizarEANConfig();
+}
+
+// ===================== CSV =====================
+function carregarCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    database = parseCSV(text);
+    localStorage.setItem('smg12_db', JSON.stringify(database));
+    atualizarStatusDB();
+    toast('✓ Banco carregado: '+database.length+' itens', 'success');
+  };
+  reader.readAsText(file, 'latin1');
+}
+
+function parseCSV(text) {
+  const linhas = text.split(/\r?\n/).filter(l => l.trim());
+  const result = [];
+  for (const linha of linhas) {
+    const cols = splitCSVLine(linha);
+    if (!cols[0]) continue;
+    const cod = String(cols[0]).trim();
+    const nome = String(cols[2] || '').trim();
+    const comp = String(cols[3] || '').trim();
+    if (cod) result.push({ cod, nome, comp });
+  }
+  return result;
+}
+
+function splitCSVLine(line) {
+  const cols = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; continue; }
+    if (c === ';' && !inQ) { cols.push(cur); cur = ''; continue; }
+    if (c === ',' && !inQ) { cols.push(cur); cur = ''; continue; }
+    cur += c;
+  }
+  cols.push(cur);
+  return cols;
+}
+
+function atualizarStatusDB() {
+  const dot = document.getElementById('db-dot');
+  const info = document.getElementById('db-info');
+  if (database.length > 0) {
+    dot.className = 'db-dot loaded';
+    info.textContent = `✓ ${database.length} itens carregados`;
+  } else {
+    dot.className = 'db-dot empty';
+    info.textContent = 'Nenhum arquivo carregado';
+  }
+}
+
+// ===================== BUSCA PRODUTO =====================
+function buscaProduto(cod) {
+  cod = cod.trim();
+  const preview = document.getElementById('prod-preview');
+  if (!cod) {
+    preview.className = 'produto-preview';
+    preview.innerHTML = '<div class="produto-empty">Digite o código para buscar o produto...</div>';
+    return;
+  }
+  // Busca exata pelo código
+  const item = database.find(d => d.cod === cod);
+  if (item) {
+    preview.className = 'produto-preview found';
+    preview.innerHTML = `
+      <div class="produto-cod">Cód: ${item.cod}</div>
+      <div class="produto-nome">${item.nome}</div>
+      ${item.comp ? `<div class="produto-comp">${item.comp}</div>` : ''}
+    `;
+  } else if (database.length === 0) {
+    preview.className = 'produto-preview';
+    preview.innerHTML = '<div class="produto-empty">⚠️ Banco de dados não carregado. Vá em Config.</div>';
+  } else {
+    preview.className = 'produto-preview';
+    preview.innerHTML = '<div class="produto-empty">Código não encontrado no banco.</div>';
+  }
+}
+
+function getProdutoPorCod(cod) {
+  return database.find(d => d.cod === cod) || null;
+}
+
+// ===================== ADICIONAR =====================
+function adicionarItem() {
+  const cod = document.getElementById('cod-input').value.trim();
+  const qty = document.getElementById('qty-input').value.trim();
+  const unit = document.getElementById('unit-input').value;
+  const date = document.getElementById('date-input').value;
+  const obs = document.getElementById('obs-input').value.trim();
+
+  if (!cod) { toast('⚠️ Informe o código do produto', 'error'); return; }
+  if (!qty || isNaN(qty) || Number(qty) <= 0) { toast('⚠️ Informe a quantidade', 'error'); return; }
+  if (!date) { toast('⚠️ Informe a data de vencimento', 'error'); return; }
+
+  const prod = getProdutoPorCod(cod);
+  const nome = prod ? prod.nome : `Cód: ${cod}`;
+  const comp = prod ? prod.comp : '';
+
+  // Verificar se tem EAN vinculado a este código
+  const eansVinculados = Object.entries(vinculosEAN).filter(([ean, c]) => c === cod).map(([ean]) => ean);
+
+  const novoItem = {
+    id: Date.now().toString(),
+    cod,
+    nome,
+    comp,
+    qty: Number(qty),
+    unit,
+    date,
+    obs,
+    eans: eansVinculados,
+    addedAt: new Date().toISOString()
+  };
+
+  // Perguntar se quer vincular EAN se não tiver
+  if (eansVinculados.length === 0) {
+    mostrarModalVincularEAN(novoItem, () => {
+      lista.push(novoItem);
+      salvarLista();
+      limparFormAdd();
+      toast('✓ Item adicionado!', 'success');
+      renderLista();
+    });
+  } else {
+    lista.push(novoItem);
+    salvarLista();
+    limparFormAdd();
+    toast('✓ Item adicionado!', 'success');
+    renderLista();
+  }
+}
+
+function mostrarModalVincularEAN(item, onConfirm) {
+  abrirModal(
+    `${item.nome}`,
+    `<p style="font-size:13px;color:var(--text2);margin-bottom:14px;">Deseja vincular um código de barras a <strong style="color:var(--text)">${item.nome}</strong> (cód. ${item.cod})?</p>
+     <p style="font-size:12px;color:var(--text3);margin-bottom:12px;">Isso permitirá bipar o produto na câmera nas próximas vezes.</p>
+     <div class="input-group">
+       <label>Código de barras (EAN) — ou bipe com a câmera</label>
+       <div style="display:flex;gap:8px;">
+         <input type="text" id="modal-ean-input" placeholder="Ex: 7891234567890" inputmode="numeric" style="flex:1;">
+         <button onclick="openScanner('modal-ean')" style="padding:10px 12px;border-radius:6px;border:1px solid var(--accent);background:var(--bg3);color:var(--accent2);font-size:15px;cursor:pointer;">📷</button>
+       </div>
+     </div>`,
+    [
+      { label: 'Pular', class: 'btn-secondary', onclick: () => { fecharModal(); onConfirm(); } },
+      { label: 'Vincular e Adicionar', class: 'btn-primary', onclick: () => {
+        const ean = document.getElementById('modal-ean-input').value.trim();
+        if (ean) {
+          vinculosEAN[ean] = item.cod;
+          salvarEAN();
+          item.eans = [ean];
+          atualizarEANConfig();
+        }
+        fecharModal();
+        onConfirm();
+      }}
+    ]
+  );
+}
+
+function limparFormAdd() {
+  document.getElementById('cod-input').value = '';
+  document.getElementById('qty-input').value = '';
+  document.getElementById('obs-input').value = '';
+  document.getElementById('date-input').valueAsDate = new Date();
+  document.getElementById('prod-preview').className = 'produto-preview';
+  document.getElementById('prod-preview').innerHTML = '<div class="produto-empty">Digite o código para buscar o produto...</div>';
+}
+
+// ===================== LISTA / RENDER =====================
+function renderLista() {
+  const container = document.getElementById('lista-container');
+  const busca = (document.getElementById('search-input').value || '').toLowerCase();
+  const sort = document.getElementById('sort-select').value;
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+
+  let items = lista.filter(i => {
+    if (busca) return i.nome.toLowerCase().includes(busca) || i.cod.includes(busca) || (i.comp||'').toLowerCase().includes(busca);
+    return true;
+  });
+
+  // Filtro
+  items = items.filter(i => {
+    const d = new Date(i.date + 'T00:00:00');
+    const diff = Math.floor((d - hoje) / 86400000);
+    if (filtroAtual === 'vencidos') return diff < 0;
+    if (filtroAtual === 'proximos') return diff >= 0 && diff <= 7;
+    if (filtroAtual === '30d') return diff >= 0 && diff <= 30;
+    if (filtroAtual === 'ok') return diff > 30;
+    return true;
+  });
+
+  // Sort
+  items.sort((a, b) => {
+    if (sort === 'date') return a.date.localeCompare(b.date);
+    if (sort === 'name') return a.nome.localeCompare(b.nome);
+    if (sort === 'cod') return a.cod.localeCompare(b.cod);
+    if (sort === 'added') return (b.addedAt||'').localeCompare(a.addedAt||'');
+    return 0;
+  });
+
+  // Stats
+  const total = lista.length;
+  let exp = 0, warn = 0, ok = 0;
+  lista.forEach(i => {
+    const d = new Date(i.date + 'T00:00:00');
+    const diff = Math.floor((d - hoje) / 86400000);
+    if (diff < 0) exp++;
+    else if (diff <= 7) warn++;
+    else ok++;
+  });
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-exp').textContent = exp;
+  document.getElementById('stat-warn').textContent = warn;
+  document.getElementById('stat-ok').textContent = ok;
+
+  if (items.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">${lista.length === 0 ? 'Nenhum item na lista ainda.' : 'Nenhum item com esses filtros.'}</div></div>`;
+    return;
+  }
+
+  container.innerHTML = items.map(item => {
+    const d = new Date(item.date + 'T00:00:00');
+    const diff = Math.floor((d - hoje) / 86400000);
+    const cls = diff < 0 ? 'expired' : diff <= 7 ? 'expiring' : 'ok';
+    const dayLabel = diff < 0 ? `${Math.abs(diff)}d vencido` : diff === 0 ? 'Vence hoje' : `${diff}d restantes`;
+    const dayCls = diff < 0 ? 'days-exp' : diff <= 7 ? 'days-warn' : 'days-ok';
+    const dateFormatted = d.toLocaleDateString('pt-BR');
+    const eansHtml = (item.eans||[]).map(e => `<span class="ean-badge">🔗 ${e}</span>`).join(' ');
+    return `
+      <div class="item-card ${cls}">
+        <div class="item-header">
+          <div class="item-nome">${item.nome}</div>
+          <span class="item-cod-badge">${item.cod}</span>
+        </div>
+        ${item.comp ? `<div class="item-comp">${item.comp}</div>` : ''}
+        ${eansHtml ? `<div style="margin-bottom:6px;">${eansHtml}</div>` : ''}
+        <div class="item-meta">
+          <span class="item-qty">${item.qty} ${item.unit}</span>
+          <span class="item-date">📅 ${dateFormatted}</span>
+          <span class="item-days ${dayCls}">${dayLabel}</span>
+        </div>
+        ${item.obs ? `<div style="font-size:11px;color:var(--text3);margin-top:6px;">📝 ${item.obs}</div>` : ''}
+        <div class="item-actions">
+          <button class="btn-del" onclick="removerItem('${item.id}')">🗑 Remover</button>
+          <button class="btn-edit" onclick="editarItem('${item.id}')">✏️ Editar</button>
+          ${(item.eans||[]).length === 0 ? `<button class="btn-edit" onclick="vincularEANItem('${item.id}')">🔗 Vincular EAN</button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function setFiltro(filtro, btn) {
+  filtroAtual = filtro;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLista();
+}
+
+function removerItem(id) {
+  abrirModal('Remover item', '<p style="font-size:14px;color:var(--text2);">Tem certeza que deseja remover este item da lista?</p>', [
+    { label: 'Cancelar', class: 'btn-secondary', onclick: fecharModal },
+    { label: 'Remover', class: 'btn-danger', onclick: () => {
+      lista = lista.filter(i => i.id !== id);
+      salvarLista();
+      fecharModal();
+      renderLista();
+      toast('Item removido', '');
+    }}
+  ]);
+}
+
+function editarItem(id) {
+  const item = lista.find(i => i.id === id);
+  if (!item) return;
+  abrirModal('Editar Item', `
+    <div class="input-group">
+      <label>Quantidade</label>
+      <input type="number" id="edit-qty" value="${item.qty}" min="0" step="0.001">
+    </div>
+    <div class="input-group">
+      <label>Unidade</label>
+      <select id="edit-unit">
+        <option value="un" ${item.unit==='un'?'selected':''}>un</option>
+        <option value="kg" ${item.unit==='kg'?'selected':''}>kg</option>
+        <option value="cx" ${item.unit==='cx'?'selected':''}>cx</option>
+        <option value="plt" ${item.unit==='plt'?'selected':''}>plt</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <label>Data de Vencimento</label>
+      <input type="date" id="edit-date" value="${item.date}">
+    </div>
+    <div class="input-group">
+      <label>Observação</label>
+      <input type="text" id="edit-obs" value="${item.obs||''}">
+    </div>
+  `, [
+    { label: 'Cancelar', class: 'btn-secondary', onclick: fecharModal },
+    { label: 'Salvar', class: 'btn-primary', onclick: () => {
+      item.qty = Number(document.getElementById('edit-qty').value);
+      item.unit = document.getElementById('edit-unit').value;
+      item.date = document.getElementById('edit-date').value;
+      item.obs = document.getElementById('edit-obs').value.trim();
+      salvarLista();
+      fecharModal();
+      renderLista();
+      toast('✓ Editado!', 'success');
+    }}
+  ]);
+}
+
+function vincularEANItem(id) {
+  const item = lista.find(i => i.id === id);
+  if (!item) return;
+  abrirModal('Vincular EAN', `
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">Vincule um código de barras ao produto <strong style="color:var(--text)">${item.nome}</strong>.</p>
+    <div class="input-group">
+      <label>Código de barras (EAN)</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="modal-ean-input" placeholder="Ex: 7891234567890" inputmode="numeric" style="flex:1;">
+        <button onclick="openScanner('modal-ean')" style="padding:10px 12px;border-radius:6px;border:1px solid var(--accent);background:var(--bg3);color:var(--accent2);font-size:15px;cursor:pointer;">📷</button>
+      </div>
+    </div>
+  `, [
+    { label: 'Cancelar', class: 'btn-secondary', onclick: fecharModal },
+    { label: 'Vincular', class: 'btn-primary', onclick: () => {
+      const ean = document.getElementById('modal-ean-input').value.trim();
+      if (!ean) { toast('⚠️ Informe o EAN', 'error'); return; }
+      vinculosEAN[ean] = item.cod;
+      salvarEAN();
+      if (!item.eans) item.eans = [];
+      if (!item.eans.includes(ean)) item.eans.push(ean);
+      salvarLista();
+      atualizarEANConfig();
+      fecharModal();
+      renderLista();
+      toast('✓ EAN vinculado!', 'success');
+    }}
+  ]);
+}
+
+// ===================== SCANNER =====================
+function openScanner(ctx) {
+  scannerContext = ctx;
+  const container = document.getElementById('scanner-container');
+  container.classList.add('open');
+  iniciarScanner();
+}
+
+function fecharScanner() {
+  document.getElementById('scanner-container').classList.remove('open');
+  if (codeReader) { try { codeReader.reset(); } catch(e){} codeReader = null; }
+  scannerAtivo = false;
+}
+
+function iniciarScanner() {
+  if (!window.ZXing) {
+    toast('⚠️ Biblioteca de scanner não carregada', 'error');
+    fecharScanner();
+    return;
+  }
+  try {
+    codeReader = new ZXing.BrowserMultiFormatReader();
+    codeReader.decodeFromConstraints(
+      { video: { facingMode: 'environment' } },
+      document.getElementById('scanner-video'),
+      (result, err) => {
+        if (result) {
+          const ean = result.getText();
+          fecharScanner();
+          processarEAN(ean);
+        }
+      }
+    );
+  } catch(e) {
+    toast('⚠️ Câmera não disponível', 'error');
+    fecharScanner();
+  }
+}
+
+function processarEAN(ean) {
+  // Se estamos no modal de EAN, preencher campo
+  if (scannerContext === 'modal-ean') {
+    const input = document.getElementById('modal-ean-input');
+    if (input) { input.value = ean; toast('✓ EAN capturado: '+ean, 'success'); }
+    return;
+  }
+
+  const codVinculado = vinculosEAN[ean];
+
+  if (codVinculado) {
+    const prod = getProdutoPorCod(codVinculado);
+    if (scannerContext === 'add') {
+      // Preencher formulário
+      document.getElementById('cod-input').value = codVinculado;
+      buscaProduto(codVinculado);
+      switchTab('add');
+      toast(`✓ Produto: ${prod ? prod.nome : codVinculado}`, 'success');
+    } else {
+      // Contexto lista: mostrar info
+      switchTab('list');
+      toast(`🔍 ${prod ? prod.nome : codVinculado}`, 'success');
+    }
+  } else {
+    // EAN não vinculado — perguntar
+    abrirModal('EAN não vinculado', `
+      <p style="font-size:13px;color:var(--text2);margin-bottom:14px;">O código de barras <strong style="color:var(--accent2);font-family:monospace">${ean}</strong> não está vinculado a nenhum produto.</p>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">Deseja vincular agora? Digite o código do produto (do SMG12):</p>
+      <div class="input-group">
+        <input type="text" id="modal-cod-ean" placeholder="Código do produto (ex: 5548)" inputmode="numeric">
+      </div>
+    `, [
+      { label: 'Cancelar', class: 'btn-secondary', onclick: fecharModal },
+      { label: 'Vincular', class: 'btn-primary', onclick: () => {
+        const cod = document.getElementById('modal-cod-ean').value.trim();
+        if (!cod) { toast('⚠️ Informe o código', 'error'); return; }
+        vinculosEAN[ean] = cod;
+        salvarEAN();
+        atualizarEANConfig();
+        fecharModal();
+        toast(`✓ EAN ${ean} vinculado ao código ${cod}`, 'success');
+        // Se contexto add, preencher
+        if (scannerContext === 'add') {
+          document.getElementById('cod-input').value = cod;
+          buscaProduto(cod);
+          switchTab('add');
+        }
+      }}
+    ]);
+  }
+}
+
+// ===================== MODAL =====================
+function abrirModal(titulo, body, btns) {
+  document.getElementById('modal-title').textContent = titulo;
+  document.getElementById('modal-body').innerHTML = body;
+  const btnsEl = document.getElementById('modal-btns');
+  btnsEl.innerHTML = '';
+  btns.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = 'btn ' + b.class;
+    btn.textContent = b.label;
+    btn.onclick = b.onclick;
+    btnsEl.appendChild(btn);
+  });
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function fecharModal(e) {
+  if (e && e.target !== document.getElementById('modal-overlay')) return;
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+// ===================== EAN CONFIG =====================
+function atualizarEANConfig() {
+  const container = document.getElementById('ean-list-config');
+  const entries = Object.entries(vinculosEAN);
+  if (entries.length === 0) {
+    container.innerHTML = '<div style="font-size:13px;color:var(--text3);">Nenhum vínculo cadastrado ainda.</div>';
+    return;
+  }
+  container.innerHTML = entries.map(([ean, cod]) => {
+    const prod = getProdutoPorCod(cod);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+      <div>
+        <div style="font-size:11px;font-family:monospace;color:var(--accent2);">${ean}</div>
+        <div style="font-size:12px;color:var(--text2);">→ ${cod} ${prod ? '· '+prod.nome : ''}</div>
+      </div>
+      <button class="btn-del" onclick="removerEAN('${ean}')">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function removerEAN(ean) {
+  delete vinculosEAN[ean];
+  salvarEAN();
+  atualizarEANConfig();
+  toast('Vínculo removido', '');
+}
+
+// ===================== EXPORT / IMPORT =====================
+function exportarLista() {
+  const hoje = new Date();
+  const rows = [['Código','Nome','Complemento','Quantidade','Unidade','Vencimento','Observação']];
+  lista.forEach(i => rows.push([i.cod, i.nome, i.comp||'', i.qty, i.unit, i.date, i.obs||'']));
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(';')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `vencimentos_${hoje.toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+function exportarVinculos() {
+  const data = JSON.stringify({vinculosEAN}, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'vinculos_ean.json';
+  a.click();
+}
+
+function importarLista() {
+  document.getElementById('import-file').click();
+}
+
+function importarBackup(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.lista) { lista = data.lista; salvarLista(); }
+      if (data.vinculosEAN) { vinculosEAN = data.vinculosEAN; salvarEAN(); }
+      renderLista();
+      atualizarEANConfig();
+      toast('✓ Backup importado!', 'success');
+    } catch { toast('⚠️ Arquivo inválido', 'error'); }
+  };
+  reader.readAsText(file);
+}
+
+function confirmarLimpar() {
+  abrirModal('Limpar lista', '<p style="font-size:14px;color:var(--text2);">Esta ação removerá <strong style="color:var(--danger)">todos os '+lista.length+' itens</strong> da lista. Não pode ser desfeito.</p>', [
+    { label: 'Cancelar', class: 'btn-secondary', onclick: fecharModal },
+    { label: '🗑 Limpar tudo', class: 'btn-danger', onclick: () => {
+      lista = [];
+      salvarLista();
+      fecharModal();
+      renderLista();
+      toast('Lista limpa', '');
+    }}
+  ]);
+}
+
+// ===================== STORAGE =====================
+function salvarLista() { localStorage.setItem('venc_lista', JSON.stringify(lista)); }
+function salvarEAN() { localStorage.setItem('venc_ean', JSON.stringify(vinculosEAN)); }
+
+// ===================== TOAST =====================
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' '+type : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ===================== DRAG & DROP CSV =====================
+const uploadZone = document.getElementById('upload-zone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) { const fakeInput = {files:[file]}; carregarCSV(fakeInput); }
+});
+
+init();
+</script>
+</body>
+</html>
